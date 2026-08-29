@@ -6,7 +6,7 @@ def test_import_ingest():
     import importlib
 
     mod = importlib.import_module("scripts.ingest")
-    assert hasattr(mod, "fetch_source")
+    assert hasattr(mod, "put_raw")
     assert hasattr(mod, "put_bronze")
 
 

@@ -1,0 +1,186 @@
+version: 2
+
+models:
+  - name: fct_orders
+    description: "One row per order: item/freight/payment totals and delivery timing."
+    columns:
+      - name: order_id
+        description: "Primary key."
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
+      - name: customer_id
+        description: "FK to stg_customers / dim_customers."
+        tests:
+          - not_null
+      - name: order_status
+        description: "Order lifecycle state."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - delivered
+                  - shipped
+                  - canceled
+                  - unavailable
+                  - invoiced
+                  - processing
+                  - created
+                  - approved
+      - name: is_delivered
+        description: "True when order_status = 'delivered'."
+        tests:
+          - not_null
+      - name: item_count
+        description: "Number of line items (0 when the order has none)."
+        tests:
+          - not_null
+      - name: items_total
+        description: "Sum of item prices (BRL), excludes freight."
+        tests:
+          - not_null
+      - name: freight_total
+        description: "Sum of freight charged (BRL)."
+        tests:
+          - not_null
+      - name: order_total
+        description: "items_total + freight_total (BRL)."
+        tests:
+          - not_null
+      - name: payment_total
+        description: "Sum of payment lines (BRL); may differ slightly from order_total."
+        tests:
+          - not_null
+      - name: purchased_at
+        description: "When the customer placed the order."
+      - name: delivered_to_customer_at
+        description: "When the customer received the order (null if not delivered)."
+      - name: estimated_delivery_at
+        description: "Delivery date promised at purchase."
+      - name: delivered_days
+        description: "Days from purchase to customer delivery (null if not delivered)."
+      - name: estimated_days
+        description: "Days from purchase to the promised delivery date."
+
+  - name: dim_customers
+    description: >
+      One row per customer_unique_id (stable person key). Geography from the most
+      recent order; lifetime_value = gross order_total across all their orders.
+    columns:
+      - name: customer_unique_id
+        description: "Primary key: the stable person identifier."
+        tests:
+          - not_null
+          - unique
+      - name: customer_state
+        description: "Two-letter state code of the most recent order."
+        tests:
+          - not_null
+      - name: order_count
+        description: "Distinct orders placed by this person."
+        tests:
+          - not_null
+      - name: delivered_order_count
+        description: "Distinct orders that reached the customer."
+      - name: is_repeat_customer
+        description: "True when order_count > 1."
+        tests:
+          - not_null
+      - name: first_order_at
+        description: "Timestamp of the person's first order."
+        tests:
+          - not_null
+      - name: last_order_at
+        description: "Timestamp of the person's most recent order."
+        tests:
+          - not_null
+      - name: customer_tenure_days
+        description: "Days between first and last order (0 for single-order customers)."
+      - name: lifetime_value
+        description: "Sum of order_total across all the person's orders (BRL)."
+        tests:
+          - not_null
+      - name: avg_order_value
+        description: "lifetime_value / order_count (BRL)."
+        tests:
+          - not_null
+
+  - name: fct_delivery_performance
+    description: >
+      One row per delivered order with an estimated date. Positive
+      delivery_delay_days = late. Category / seller state are those of the
+      order's highest-value line.
+    columns:
+      - name: order_id
+        description: "Primary key."
+        tests:
+          - not_null
+          - unique
+          - relationships:
+              arguments:
+                to: ref('fct_orders')
+                field: order_id
+      - name: customer_state
+        description: "Two-letter state code of the customer."
+        tests:
+          - not_null
+      - name: primary_category
+        description: "Category of the highest-value line (nullable)."
+      - name: primary_seller_state
+        description: "State of the seller of the highest-value line."
+      - name: actual_days
+        description: "Days from purchase to customer delivery."
+        tests:
+          - not_null
+      - name: estimated_days
+        description: "Days from purchase to the promised date."
+        tests:
+          - not_null
+      - name: delivery_delay_days
+        description: "delivered_to_customer_at - estimated_delivery_at, in days (positive = late)."
+        tests:
+          - not_null
+      - name: is_on_time
+        description: "True when delivery_delay_days <= 0."
+        tests:
+          - not_null
+      - name: is_late
+        description: "True when delivery_delay_days > 0."
+        tests:
+          - not_null
+
+  - name: mart_retention_cohorts
+    description: >
+      One row per (cohort_month, month_offset). Cohort = month of a customer's
+      first order; retention_rate = active_customers / cohort_customers.
+    columns:
+      - name: cohort_key
+        description: "Surrogate key: '<cohort_month>-m<month_offset>'."
+        tests:
+          - not_null
+          - unique
+      - name: cohort_month
+        description: "First-order month of the cohort."
+        tests:
+          - not_null
+      - name: month_offset
+        description: "Whole months from the cohort month (0 = acquisition month)."
+        tests:
+          - not_null
+      - name: cohort_customers
+        description: "Distinct customers acquired in cohort_month."
+        tests:
+          - not_null
+      - name: active_customers
+        description: "Distinct cohort customers who ordered at this offset."
+        tests:
+          - not_null
+      - name: retention_rate
+        description: "active_customers / cohort_customers (1.0 at offset 0)."
+        tests:
+          - not_null

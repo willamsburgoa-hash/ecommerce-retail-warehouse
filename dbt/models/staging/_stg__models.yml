@@ -1,0 +1,313 @@
+version: 2
+
+models:
+  - name: stg_orders
+    description: "One row per order, typed and renamed from bronze `orders`."
+    columns:
+      - name: order_id
+        description: "Primary key."
+        tests:
+          - not_null
+          - unique
+      - name: customer_id
+        description: "One customer_id per order; FK to stg_customers."
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_customers')
+                field: customer_id
+      - name: order_status
+        description: "Order lifecycle state."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - delivered
+                  - shipped
+                  - canceled
+                  - unavailable
+                  - invoiced
+                  - processing
+                  - created
+                  - approved
+      - name: purchased_at
+        description: "When the customer placed the order."
+      - name: approved_at
+        description: "When payment was approved."
+      - name: delivered_to_carrier_at
+        description: "When the order was handed to the logistics partner."
+      - name: delivered_to_customer_at
+        description: "When the customer received the order."
+      - name: estimated_delivery_at
+        description: "Delivery date promised to the customer at purchase."
+
+  - name: stg_order_items
+    description: "One row per item within an order. Grain: order_id + order_item_id."
+    columns:
+      - name: order_item_key
+        description: "Surrogate key: order_id + '-' + order_item_id."
+        tests:
+          - not_null
+          - unique
+      - name: order_id
+        description: "FK to stg_orders."
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
+      - name: order_item_id
+        description: "Sequential item number within the order (1..n)."
+        tests:
+          - not_null
+      - name: product_id
+        description: "FK to stg_products."
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_products')
+                field: product_id
+      - name: seller_id
+        description: "FK to stg_sellers."
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_sellers')
+                field: seller_id
+      - name: shipping_limit_at
+        description: "Seller's deadline to hand the item to the carrier."
+      - name: price
+        description: "Item price (BRL), excludes freight."
+        tests:
+          - not_null
+      - name: freight_value
+        description: "Freight charged for this item (BRL)."
+        tests:
+          - not_null
+
+  - name: stg_order_payments
+    description: "One row per payment on an order. Grain: order_id + payment_sequential."
+    columns:
+      - name: payment_key
+        description: "Surrogate key: order_id + '-' + payment_sequential."
+        tests:
+          - not_null
+          - unique
+      - name: order_id
+        description: "FK to stg_orders."
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
+      - name: payment_sequential
+        description: "Payment number within the order (1..n)."
+        tests:
+          - not_null
+      - name: payment_type
+        description: "Payment method."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - credit_card
+                  - boleto
+                  - voucher
+                  - debit_card
+                  - not_defined
+      - name: payment_installments
+        description: "Number of installments (0 for voucher / not_defined)."
+        tests:
+          - not_null
+      - name: payment_value
+        description: "Amount paid on this payment line (BRL)."
+        tests:
+          - not_null
+
+  - name: stg_order_reviews
+    description: >
+      Customer reviews, one row per review. review_id is NOT unique in the
+      source, so it carries only a not_null test.
+    columns:
+      - name: review_id
+        description: "Review identifier (repeats in the source; not a key)."
+        tests:
+          - not_null
+      - name: order_id
+        description: "FK to stg_orders."
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_orders')
+                field: order_id
+      - name: review_score
+        description: "1..5 star rating."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [1, 2, 3, 4, 5]
+                quote: false
+      - name: review_title
+        description: "Review headline, null when the customer left none."
+      - name: review_message
+        description: "Free-text review body, null when the customer left none."
+      - name: review_created_at
+        description: "When the review survey was sent to the customer."
+      - name: review_answered_at
+        description: "When the customer submitted the review."
+
+  - name: stg_customers
+    description: "One row per customer_id (order-scoped). Grain: customer_id."
+    columns:
+      - name: customer_id
+        description: "Primary key; joins to stg_orders."
+        tests:
+          - not_null
+          - unique
+      - name: customer_unique_id
+        description: "Stable person key for retention / LTV."
+        tests:
+          - not_null
+      - name: customer_zip_code_prefix
+        description: "First 5 digits of the postal code; joins to stg_geolocation."
+        tests:
+          - not_null
+      - name: customer_city
+        description: "City name, trimmed."
+      - name: customer_state
+        description: "Two-letter Brazilian state code."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: &br_state_codes
+                  - AC
+                  - AL
+                  - AP
+                  - AM
+                  - BA
+                  - CE
+                  - DF
+                  - ES
+                  - GO
+                  - MA
+                  - MG
+                  - MS
+                  - MT
+                  - PA
+                  - PB
+                  - PE
+                  - PI
+                  - PR
+                  - RJ
+                  - RN
+                  - RO
+                  - RR
+                  - RS
+                  - SC
+                  - SE
+                  - SP
+                  - TO
+
+  - name: stg_products
+    description: >
+      Product catalog. Grain: product_id. ~610 rows carry no category or
+      dimensions (NULL). Source `lenght` typos renamed to `length`.
+    columns:
+      - name: product_id
+        description: "Primary key; joins to stg_order_items."
+        tests:
+          - not_null
+          - unique
+      - name: product_category_name
+        description: "Portuguese category name; joins to stg_product_category_translation. Nullable."
+        tests:
+          - relationships:
+              arguments:
+                to: ref('stg_product_category_translation')
+                field: product_category_name
+              config:
+                severity: warn  # 2 source categories have no translation row
+      - name: product_name_length
+        description: "Character count of the product name (nullable)."
+      - name: product_description_length
+        description: "Character count of the product description (nullable)."
+      - name: product_photos_qty
+        description: "Number of catalog photos (nullable)."
+      - name: product_weight_g
+        description: "Product weight in grams (nullable)."
+      - name: product_length_cm
+        description: "Package length in cm (nullable)."
+      - name: product_height_cm
+        description: "Package height in cm (nullable)."
+      - name: product_width_cm
+        description: "Package width in cm (nullable)."
+
+  - name: stg_sellers
+    description: "Seller catalog. Grain: seller_id."
+    columns:
+      - name: seller_id
+        description: "Primary key; joins to stg_order_items."
+        tests:
+          - not_null
+          - unique
+      - name: seller_zip_code_prefix
+        description: "First 5 digits of the postal code; joins to stg_geolocation."
+        tests:
+          - not_null
+      - name: seller_city
+        description: "City name, trimmed."
+      - name: seller_state
+        description: "Two-letter Brazilian state code."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: *br_state_codes
+
+  - name: stg_product_category_translation
+    description: "Portuguese -> English category names. Grain: product_category_name."
+    columns:
+      - name: product_category_name
+        description: "Portuguese category name; join key from stg_products."
+        tests:
+          - not_null
+          - unique
+      - name: product_category_name_english
+        description: "English category name."
+        tests:
+          - not_null
+          - unique
+
+  - name: stg_geolocation
+    description: >
+      Lat/lng by zip-code prefix, collapsed to one row per prefix.
+      Grain: geolocation_zip_code_prefix.
+    columns:
+      - name: geolocation_zip_code_prefix
+        description: "First 5 digits of the postal code; join key from customers / sellers."
+        tests:
+          - not_null
+          - unique
+      - name: geolocation_lat
+        description: "Latitude of a representative point in the prefix."
+      - name: geolocation_lng
+        description: "Longitude of a representative point in the prefix."
+      - name: geolocation_city
+        description: "City name, trimmed."
+      - name: geolocation_state
+        description: "Two-letter Brazilian state code."
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: *br_state_codes

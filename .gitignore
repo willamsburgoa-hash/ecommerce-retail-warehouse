@@ -26,6 +26,8 @@ bronze/
 dbt/target/
 dbt/dbt_packages/
 dbt/logs/
+dbt/profiles.yml
+*.duckdb
 
 # Terraform
 terraform/.terraform/

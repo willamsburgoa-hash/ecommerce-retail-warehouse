@@ -1,15 +1,63 @@
 version: 2
 
-# Declare the raw/bronze tables the pipeline lands. Rename per project.
 sources:
-  - name: bronze
+  - name: olist
+    description: >
+      Bronze Parquet tables landed in the Glue Data Catalog by scripts/ingest.py
+      and registered by scripts/create_glue_tables.py.
     schema: "{{ env_var('GLUE_DATABASE', 'retail') }}"
-    description: "Parquet tables landed by scripts/ingest.py"
+    loaded_at_field: "date_parse(ingest_date, '%Y-%m-%d')"
+    # Daily batch — enable once ingest.py runs on a schedule (block B21).
+    # freshness:
+    #   warn_after: {count: 48, period: hour}
     tables:
-      - name: example_table
-        description: "TODO: replace with real bronze tables"
-        # freshness:
-        #   warn_after: {count: 36, period: hour}
+      - name: orders
+        description: "One row per order. Grain: order_id."
         columns:
-          - name: id
+          - name: order_id
+            tests: [not_null, unique]
+          - name: customer_id
+            tests: [not_null]
+      - name: order_items
+        description: "One row per item in an order. Grain: order_id + order_item_id."
+        columns:
+          - name: order_id
+            tests: [not_null]
+          - name: product_id
+            tests: [not_null]
+          - name: seller_id
+            tests: [not_null]
+      - name: order_payments
+        description: "Payment records per order (can be several)."
+        columns:
+          - name: order_id
+            tests: [not_null]
+      - name: order_reviews
+        description: "Customer reviews. review_id is NOT unique in the source."
+        columns:
+          - name: order_id
+            tests: [not_null]
+      - name: customers
+        description: "Customer keys + location. Grain: customer_id."
+        columns:
+          - name: customer_id
+            tests: [not_null, unique]
+          - name: customer_unique_id
+            tests: [not_null]
+      - name: products
+        description: "Product catalog. Grain: product_id."
+        columns:
+          - name: product_id
+            tests: [not_null, unique]
+      - name: sellers
+        description: "Seller catalog. Grain: seller_id."
+        columns:
+          - name: seller_id
+            tests: [not_null, unique]
+      - name: geolocation
+        description: "Lat/lng by zip prefix (deduped to one row per prefix in the sample)."
+      - name: product_category_translation
+        description: "Portuguese -> English category names. Grain: product_category_name."
+        columns:
+          - name: product_category_name
             tests: [not_null, unique]

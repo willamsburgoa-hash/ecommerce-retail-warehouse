@@ -1,0 +1,27 @@
+# Copy to dbt/profiles.yml (git-ignored). All values come from env vars in
+# ../.env, so there is nothing secret to fill in. Run dbt as:
+#   dotenv run -- dbt <cmd> --project-dir dbt --profiles-dir dbt
+# or export the vars into the shell first.
+
+portfolio_project:
+  target: dev
+  outputs:
+
+    # --- Athena: bronze DB `retail` in the Glue Data Catalog ---
+    dev:
+      type: athena
+      s3_staging_dir: "{{ env_var('ATHENA_OUTPUT') }}"
+      s3_data_dir: "s3://{{ env_var('S3_BUCKET', 'de-portfolio') }}/dbt/"
+      s3_data_naming: "schema_table"
+      region_name: "{{ env_var('AWS_DEFAULT_REGION', 'us-east-1') }}"
+      database: awsdatacatalog
+      catalog_name: awsdatacatalog
+      schema: "{{ env_var('GLUE_DATABASE', 'retail') }}"
+      work_group: "{{ env_var('ATHENA_WORKGROUP', 'de-portfolio') }}"
+      threads: 4
+
+    # --- CI: local DuckDB, no cloud creds (see .github/workflows/ci.yml) ---
+    ci:
+      type: duckdb
+      path: "ci.duckdb"
+      threads: 2
