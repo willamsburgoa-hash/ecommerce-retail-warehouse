@@ -29,6 +29,11 @@ dbt/logs/
 dbt/profiles.yml
 *.duckdb
 
+# Dagster local instance (created when DAGSTER_HOME is unset)
+.tmp_dagster_home*/
+dagster_home/
+.dagster/
+
 # Terraform
 terraform/.terraform/
 *.tfstate

@@ -1,0 +1,29 @@
+.git/
+.venv/
+venv/
+**/__pycache__/
+*.py[cod]
+
+.env
+.env.*
+
+# Big / regenerated data — the committed slice in data/olist_sample/ IS kept
+data/olist/
+raw/
+bronze/
+*.parquet
+
+# dbt / duckdb / terraform state
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+*.duckdb
+terraform/.terraform/
+*.tfstate
+*.tfstate.*
+
+.pytest_cache/
+.ruff_cache/
+.idea/
+.vscode/
+docs/img/

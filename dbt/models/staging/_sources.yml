@@ -3,9 +3,10 @@ version: 2
 sources:
   - name: olist
     description: >
-      Bronze Parquet tables landed in the Glue Data Catalog by scripts/ingest.py
-      and registered by scripts/create_glue_tables.py.
-    schema: "{{ env_var('GLUE_DATABASE', 'retail') }}"
+      Bronze tables. On Athena they are the Glue Data Catalog tables landed by
+      scripts/ingest.py + scripts/create_glue_tables.py. On the CI (duckdb)
+      target they resolve to the committed seed slice in dbt/seeds/.
+    schema: "{{ 'main' if target.name == 'ci' else env_var('GLUE_DATABASE', 'retail') }}"
     loaded_at_field: "date_parse(ingest_date, '%Y-%m-%d')"
     # Daily batch — enable once ingest.py runs on a schedule (block B21).
     # freshness:

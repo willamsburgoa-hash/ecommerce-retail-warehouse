@@ -11,7 +11,7 @@ select
     order_item_id,
     product_id,
     seller_id,
-    date_parse(nullif(shipping_limit_date, ''), '%Y-%m-%d %H:%i:%s') as shipping_limit_at,
+    {{ parse_ts('shipping_limit_date') }} as shipping_limit_at,
     price,
     freight_value
 from source

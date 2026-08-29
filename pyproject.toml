@@ -24,7 +24,14 @@ dependencies = [
 aws = ["dbt-athena-community>=1.8", "dagster>=1.8", "dagster-webserver>=1.8", "dagster-dbt>=0.24"]
 databricks = ["dbt-databricks>=1.8", "databricks-sdk>=0.30", "pyspark>=3.5"]
 quality = ["great-expectations>=1.0", "soda-core-athena>=3.3"]
-dev = ["ruff>=0.6", "sqlfluff>=3.1", "pytest>=8.3", "pytest-cov>=5.0"]
+dev = [
+    "ruff>=0.6",
+    "sqlfluff>=3.1",
+    "sqlfluff-templater-dbt>=3.1",
+    "dbt-duckdb>=1.8",
+    "pytest>=8.3",
+    "pytest-cov>=5.0",
+]
 
 [tool.setuptools]
 py-modules = []

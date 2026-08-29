@@ -1,6 +1,0 @@
-id,category,amount,status
-1,books,12.50,delivered
-2,books,9.00,delivered
-3,electronics,199.99,shipped
-4,electronics,49.90,delivered
-5,home,25.00,canceled

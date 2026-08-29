@@ -17,7 +17,12 @@ models:
   portfolio_project:
     staging:
       +materialized: view
-      +schema: staging
     marts:
       +materialized: table
-      +schema: marts
+
+# The seed slice stands in for the bronze sources ONLY on the CI (duckdb) target.
+# On Athena it must never run: the seed names collide with the bronze external
+# tables and dbt would overwrite them.
+seeds:
+  portfolio_project:
+    +enabled: "{{ target.name == 'ci' }}"

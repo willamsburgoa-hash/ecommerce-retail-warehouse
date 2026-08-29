@@ -8,6 +8,8 @@ on:
 jobs:
   lint-test:
     runs-on: ubuntu-latest
+    env:
+      DBT_PROFILES_DIR: ${{ github.workspace }}/dbt
     steps:
       - uses: actions/checkout@v4
 
@@ -19,25 +21,21 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
-          # dbt adapter: swap to dbt-databricks in P3/P4
-          pip install dbt-duckdb
 
       - name: Ruff (lint)
         run: ruff check .
 
-      - name: SQLFluff (lint dbt models)
-        run: sqlfluff lint dbt/models --dialect duckdb || true
-
       - name: Pytest
         run: pytest
 
-      - name: dbt parse + build on sample
+      - name: dbt on the seed slice (DuckDB, no cloud creds)
         working-directory: dbt
-        env:
-          DBT_PROFILES_DIR: ${{ github.workspace }}/dbt
         run: |
-          cp profiles.ci.yml profiles.yml || true
-          dbt deps || true
-          dbt parse
-          # Build against the local DuckDB sample seeds so CI needs no cloud creds
-          dbt build --target ci || echo "no ci target configured yet"
+          cp profiles.ci.yml profiles.yml
+          dbt seed --target ci
+          dbt run --target ci
+          dbt test --target ci
+
+      - name: SQLFluff (advisory)
+        working-directory: dbt
+        run: sqlfluff lint models --dialect duckdb || true

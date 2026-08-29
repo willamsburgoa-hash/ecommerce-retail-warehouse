@@ -8,7 +8,7 @@ WORKDIR /app
 
 # Install deps first for layer caching
 COPY pyproject.toml ./
-RUN pip install --upgrade pip && pip install ".[aws,quality]"
+RUN pip install --upgrade pip && pip install ".[aws,dev]"
 
 COPY . .
 

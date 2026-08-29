@@ -1,28 +1,28 @@
-# Local, reproducible run of the whole pipeline: ingest -> dbt build -> dashboard.
-# Adjust per project (P3/P4 run on Databricks, so they only use the `dbt` + `dashboard` idea locally).
+# Two ways to run the pipeline:
+#
+#   docker compose up                  -> no credentials. dbt seed/run/test on
+#                                         DuckDB (committed sample) + dashboard.
+#   docker compose --profile aws up    -> the real thing on your AWS account:
+#                                         ingest -> glue -> dbt build (Athena)
+#                                         + a Dagster scheduler UI on :3000.
 
 services:
-  ingest:
-    build: .
-    env_file: .env
-    command: python scripts/ingest.py
-    volumes:
-      - ./:/app
-
+  # ---- default: credential-free demo ----
   dbt:
     build: .
-    env_file: .env
     working_dir: /app/dbt
-    command: dbt build --profiles-dir .
-    depends_on:
-      ingest:
-        condition: service_completed_successfully
+    command: >
+      sh -c "cp -n profiles.ci.yml profiles.yml;
+             dbt seed --target ci && dbt run --target ci && dbt test --target ci"
     volumes:
       - ./:/app
 
   dashboard:
     build: .
-    env_file: .env
+    environment:
+      DASHBOARD_ENGINE: duckdb
+      DUCKDB_PATH: /app/dbt/ci.duckdb
+      DBT_SCHEMA: main
     command: streamlit run dashboards/app.py --server.address 0.0.0.0 --server.port 8501
     ports:
       - "8501:8501"
@@ -32,12 +32,44 @@ services:
     volumes:
       - ./:/app
 
-  # Uncomment for the AWS projects (P1, P2) to get a scheduler UI at http://localhost:3000
-  # dagster:
-  #   build: .
-  #   env_file: .env
-  #   command: dagster dev -h 0.0.0.0 -p 3000 -f dagster/definitions.py
-  #   ports:
-  #     - "3000:3000"
-  #   volumes:
-  #     - ./:/app
+  # ---- profile: aws (needs .env with AWS_* and terraform apply done) ----
+  ingest:
+    profiles: ["aws"]
+    build: .
+    env_file: .env
+    command: python scripts/ingest.py
+    volumes:
+      - ./:/app
+
+  glue:
+    profiles: ["aws"]
+    build: .
+    env_file: .env
+    command: python scripts/create_glue_tables.py
+    depends_on:
+      ingest:
+        condition: service_completed_successfully
+    volumes:
+      - ./:/app
+
+  dbt-aws:
+    profiles: ["aws"]
+    build: .
+    working_dir: /app/dbt
+    env_file: .env
+    command: sh -c "cp -n profiles.yml.example profiles.yml; dbt build"
+    depends_on:
+      glue:
+        condition: service_completed_successfully
+    volumes:
+      - ./:/app
+
+  dagster:
+    profiles: ["aws"]
+    build: .
+    env_file: .env
+    command: dagster dev -h 0.0.0.0 -p 3000 -f dagster/definitions.py
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./:/app

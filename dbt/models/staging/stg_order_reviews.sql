@@ -12,6 +12,6 @@ select
     review_score,
     nullif(trim(review_comment_title), '')                             as review_title,
     nullif(trim(review_comment_message), '')                           as review_message,
-    date_parse(nullif(review_creation_date, ''), '%Y-%m-%d %H:%i:%s')  as review_created_at,
-    date_parse(nullif(review_answer_timestamp, ''), '%Y-%m-%d %H:%i:%s') as review_answered_at
+    {{ parse_ts('review_creation_date') }}   as review_created_at,
+    {{ parse_ts('review_answer_timestamp') }} as review_answered_at
 from source

@@ -39,7 +39,7 @@ orders_with_offset as (
 )
 
 select
-    date_format(o.cohort_month, '%Y-%m') || '-m' || cast(o.month_offset as varchar) as cohort_key,
+    {{ month_key('o.cohort_month') }} || '-m' || cast(o.month_offset as varchar) as cohort_key,
     cast(o.cohort_month as date)                                                    as cohort_month,
     o.month_offset,
     cs.cohort_customers,
