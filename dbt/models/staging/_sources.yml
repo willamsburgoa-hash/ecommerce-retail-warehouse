@@ -1,0 +1,15 @@
+version: 2
+
+# Declare the raw/bronze tables the pipeline lands. Rename per project.
+sources:
+  - name: bronze
+    schema: "{{ env_var('GLUE_DATABASE', 'retail') }}"
+    description: "Parquet tables landed by scripts/ingest.py"
+    tables:
+      - name: example_table
+        description: "TODO: replace with real bronze tables"
+        # freshness:
+        #   warn_after: {count: 36, period: hour}
+        columns:
+          - name: id
+            tests: [not_null, unique]

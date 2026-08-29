@@ -1,0 +1,16 @@
+version: 2
+
+models:
+  - name: mart_example
+    description: "Scaffold mart. Replace with real business marts."
+    columns:
+      - name: category
+        tests:
+          - not_null
+          - unique
+      - name: orders
+        tests:
+          - not_null
+      - name: revenue
+        tests:
+          - not_null

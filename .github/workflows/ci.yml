@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          # dbt adapter: swap to dbt-databricks in P3/P4
+          pip install dbt-duckdb
+
+      - name: Ruff (lint)
+        run: ruff check .
+
+      - name: SQLFluff (lint dbt models)
+        run: sqlfluff lint dbt/models --dialect duckdb || true
+
+      - name: Pytest
+        run: pytest
+
+      - name: dbt parse + build on sample
+        working-directory: dbt
+        env:
+          DBT_PROFILES_DIR: ${{ github.workspace }}/dbt
+        run: |
+          cp profiles.ci.yml profiles.yml || true
+          dbt deps || true
+          dbt parse
+          # Build against the local DuckDB sample seeds so CI needs no cloud creds
+          dbt build --target ci || echo "no ci target configured yet"

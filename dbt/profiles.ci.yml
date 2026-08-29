@@ -1,0 +1,8 @@
+# Minimal profile used by CI (see .github/workflows/ci.yml). Local DuckDB only.
+portfolio_project:
+  target: ci
+  outputs:
+    ci:
+      type: duckdb
+      path: "ci.duckdb"
+      threads: 2
